@@ -32,6 +32,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 }
 
 $teachers = readTeachers($filename);
+
+// Сортуємо викладачів за зарплатою у зростаючому порядку
+usort($teachers, fn($a, $b) => $a[4] - $b[4]);
+
+// Обчислюємо кількість доцентів на факультеті ФПМ
+$docentCount = count(array_filter($teachers, fn($t) => $t[2] === "ФПМ" && $t[6] === "доцент"));
 ?>
 
 <!DOCTYPE html>
@@ -84,7 +90,7 @@ $teachers = readTeachers($filename);
         input, button {
             padding: 10px;
             margin: 5px;
-            width: 100%;
+            width: 90%;
             max-width: 400px;
         }
         button {
@@ -104,7 +110,7 @@ $teachers = readTeachers($filename);
 </head>
 <body>
     <div class="container">
-        <h2>Список викладачів</h2>
+        <h2>Список викладачів (сортування за зарплатою)</h2>
         <table>
             <tr>
                 <th>Прізвище</th>
@@ -127,6 +133,8 @@ $teachers = readTeachers($filename);
                 </tr>
             <?php endforeach; ?>
         </table>
+        
+        <h3>Кількість доцентів на ФПМ: <?= $docentCount ?></h3>
         
         <h2>Додати викладача</h2>
         <form method="post">
