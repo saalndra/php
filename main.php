@@ -13,7 +13,7 @@ function addTeacher($filename, $teacherData) {
     file_put_contents($filename, $line, FILE_APPEND | LOCK_EX);
 }
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["surname"])) {
     $surname = trim($_POST["surname"]);
     $name = trim($_POST["name"]);
     $faculty = trim($_POST["faculty"]);
@@ -38,6 +38,10 @@ usort($teachers, fn($a, $b) => $a[4] - $b[4]);
 
 // Обчислюємо кількість доцентів на факультеті ФПМ
 $docentCount = count(array_filter($teachers, fn($t) => $t[2] === "ФПМ" && $t[6] === "доцент"));
+
+// Фільтрація викладачів за введеними символами у прізвищі
+$searchTerm = $_GET["search"] ?? "";
+$filteredTeachers = array_filter($teachers, fn($t) => stripos($t[0], $searchTerm) !== false);
 ?>
 
 <!DOCTYPE html>
@@ -110,7 +114,13 @@ $docentCount = count(array_filter($teachers, fn($t) => $t[2] === "ФПМ" && $t[
 </head>
 <body>
     <div class="container">
-        <h2>Список викладачів (сортування за зарплатою)</h2>
+        <h2>Пошук викладачів за прізвищем</h2>
+        <form method="get">
+            <input type="text" name="search" placeholder="Введіть символи для пошуку" value="<?= htmlspecialchars($searchTerm) ?>">
+            <button type="submit">Шукати</button>
+        </form>
+        
+        <h2>Список викладачів</h2>
         <table>
             <tr>
                 <th>Прізвище</th>
@@ -121,7 +131,7 @@ $docentCount = count(array_filter($teachers, fn($t) => $t[2] === "ФПМ" && $t[
                 <th>Науковий ступінь</th>
                 <th>Посада</th>
             </tr>
-            <?php foreach ($teachers as $teacher): ?>
+            <?php foreach ($filteredTeachers as $teacher): ?>
                 <tr>
                     <td><?= htmlspecialchars($teacher[0]) ?></td>
                     <td><?= htmlspecialchars($teacher[1]) ?></td>
