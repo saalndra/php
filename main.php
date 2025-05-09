@@ -1,5 +1,6 @@
 <?php
 require_once 'db.php';
+require_once 'Teacher.php';
 
 // Функція для отримання всіх факультетів
 function getFaculties() {
@@ -42,6 +43,19 @@ function addTeacher($surname, $name, $faculty_id, $birthdate, $salary, $degree_i
     $stmt = $pdo->prepare("INSERT INTO teachers (surname, name, faculty_id, birthdate, salary, degree_id, position_id) 
                            VALUES (?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([$surname, $name, $faculty_id, $birthdate, $salary, $degree_id, $position_id]);
+}
+
+// Функція для отримання викладачів за факультетом
+function getTeachersByFaculty($faculty_id) {
+    global $pdo;
+    $stmt = $pdo->prepare("SELECT t.id, t.surname, t.name, f.name AS faculty, t.birthdate, t.salary, d.name AS degree, p.name AS position
+                         FROM teachers t
+                         JOIN faculties f ON t.faculty_id = f.id
+                         JOIN degrees d ON t.degree_id = d.id
+                         JOIN positions p ON t.position_id = p.id
+                         WHERE t.faculty_id = ?");
+    $stmt->execute([$faculty_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["surname"])) {
@@ -169,7 +183,7 @@ $degrees = getDegrees();
                 </tr>
             <?php endforeach; ?>
         </table>
-        
+
         <h2>Додати викладача</h2>
         <form method="post">
             <input type="text" name="surname" placeholder="Прізвище" required>
