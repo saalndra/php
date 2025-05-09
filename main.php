@@ -1,16 +1,16 @@
 <?php
+require_once 'db.php';
 
-$filename = "teachers.txt";
-
-function readTeachers($filename) {
-    if (!file_exists($filename)) return [];
-    $data = file($filename, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    return array_map(fn($line) => explode("|", $line), $data);
+function getTeachers() {
+    global $pdo;
+    $stmt = $pdo->query("SELECT * FROM teachers");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function addTeacher($filename, $teacherData) {
-    $line = implode("|", $teacherData) . "\n";
-    file_put_contents($filename, $line, FILE_APPEND | LOCK_EX);
+function addTeacher($surname, $name, $faculty, $birthdate, $salary, $degree, $position) {
+    global $pdo;
+    $stmt = $pdo->prepare("INSERT INTO teachers (surname, name, faculty, birthdate, salary, degree, position) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$surname, $name, $faculty, $birthdate, $salary, $degree, $position]);
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["surname"])) {
@@ -21,9 +21,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["surname"])) {
     $salary = trim($_POST["salary"]);
     $degree = trim($_POST["degree"]);
     $position = trim($_POST["position"]);
-    
+
     if ($surname && $name && $faculty && $birthdate && $salary && $degree && $position) {
-        addTeacher($filename, [$surname, $name, $faculty, $birthdate, $salary, $degree, $position]);
+        addTeacher($surname, $name, $faculty, $birthdate, $salary, $degree, $position);
         header("Location: " . $_SERVER["PHP_SELF"]);
         exit;
     } else {
@@ -31,17 +31,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["surname"])) {
     }
 }
 
-$teachers = readTeachers($filename);
+$teachers = getTeachers();
 
 // Сортуємо викладачів за зарплатою у зростаючому порядку
-usort($teachers, fn($a, $b) => $a[4] - $b[4]);
-
-// Обчислюємо кількість доцентів на факультеті ФПМ
-$docentCount = count(array_filter($teachers, fn($t) => $t[2] === "ФПМ" && $t[6] === "доцент"));
+usort($teachers, fn($a, $b) => $a['salary'] - $b['salary']);
 
 // Фільтрація викладачів за введеними символами у прізвищі
 $searchTerm = $_GET["search"] ?? "";
-$filteredTeachers = array_filter($teachers, fn($t) => stripos($t[0], $searchTerm) !== false);
+$filteredTeachers = array_filter($teachers, fn($t) => stripos($t['surname'], $searchTerm) !== false);
 ?>
 
 <!DOCTYPE html>
@@ -51,65 +48,18 @@ $filteredTeachers = array_filter($teachers, fn($t) => stripos($t[0], $searchTerm
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Викладачі університету</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-            text-align: center;
-        }
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            max-width: 800px;
-            margin: auto;
-        }
-        h2 {
-            color: #333;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            background: white;
-        }
-        table, th, td {
-            border: 1px solid #ddd;
-        }
-        th, td {
-            padding: 10px;
-            text-align: left;
-        }
-        th {
-            background-color: #007BFF;
-            color: white;
-        }
-        form {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        input, button {
-            padding: 10px;
-            margin: 5px;
-            width: 90%;
-            max-width: 400px;
-        }
-        button {
-            background-color: #28a745;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #218838;
-        }
-        .error {
-            color: red;
-            font-weight: bold;
-        }
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; text-align: center; }
+        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); max-width: 800px; margin: auto; }
+        h2 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; background: white; }
+        table, th, td { border: 1px solid #ddd; }
+        th, td { padding: 10px; text-align: left; }
+        th { background-color: #007BFF; color: white; }
+        form { display: flex; flex-direction: column; align-items: center; }
+        input, button { padding: 10px; margin: 5px; width: 90%; max-width: 400px; }
+        button { background-color: #28a745; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #218838; }
+        .error { color: red; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -133,19 +83,17 @@ $filteredTeachers = array_filter($teachers, fn($t) => stripos($t[0], $searchTerm
             </tr>
             <?php foreach ($filteredTeachers as $teacher): ?>
                 <tr>
-                    <td><?= htmlspecialchars($teacher[0]) ?></td>
-                    <td><?= htmlspecialchars($teacher[1]) ?></td>
-                    <td><?= htmlspecialchars($teacher[2]) ?></td>
-                    <td><?= htmlspecialchars($teacher[3]) ?></td>
-                    <td><?= htmlspecialchars($teacher[4]) ?></td>
-                    <td><?= htmlspecialchars($teacher[5]) ?></td>
-                    <td><?= htmlspecialchars($teacher[6]) ?></td>
+                    <td><?= htmlspecialchars($teacher['surname']) ?></td>
+                    <td><?= htmlspecialchars($teacher['name']) ?></td>
+                    <td><?= htmlspecialchars($teacher['faculty']) ?></td>
+                    <td><?= htmlspecialchars($teacher['birthdate']) ?></td>
+                    <td><?= htmlspecialchars($teacher['salary']) ?></td>
+                    <td><?= htmlspecialchars($teacher['degree']) ?></td>
+                    <td><?= htmlspecialchars($teacher['position']) ?></td>
                 </tr>
             <?php endforeach; ?>
         </table>
-        
-        <h3>Кількість доцентів на ФПМ: <?= $docentCount ?></h3>
-        
+
         <h2>Додати викладача</h2>
         <form method="post">
             <input type="text" name="surname" placeholder="Прізвище" required>
